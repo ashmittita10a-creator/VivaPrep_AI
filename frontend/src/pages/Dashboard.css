@@ -1,0 +1,273 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.dashboard-page {
+  min-height: 100vh;
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  color: white;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.dashboard-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* HEADER */
+.dashboard-header {
+  position: relative;
+  z-index: 2;
+  padding: 34px 55px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* LEFT SIDE */
+.brand-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.dashboard-logo {
+  width: 300px;
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 0 14px rgba(0, 180, 255, 0.35));
+}
+
+.tagline {
+  margin-top: 20px;
+  font-size: px;
+  color: rgba(255,255,255,.92);
+}
+
+/* RIGHT SIDE */
+.right-side {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(10px);
+}
+
+.user-box img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-box h3 {
+  font-size: 18px;
+  margin-bottom: 3px;
+}
+
+.user-box span {
+  font-size: 14px;
+  color: rgba(255,255,255,.72);
+}
+
+.logout-btn {
+  border: none;
+  padding: 15px 28px;
+  border-radius: 16px;
+  background: #ef3345;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s ease;
+}
+
+.logout-btn:hover {
+  transform: translateY(-2px);
+  background: #ff2740;
+}
+
+/* GRID */
+.cards-grid {
+  position: relative;
+  z-index: 2;
+  width: 1180px;
+  margin: 55px auto 0;
+  display: grid;
+  grid-template-columns: repeat(3, 370px);
+  gap: 50px;
+  justify-content: center;
+}
+
+/* CARD */
+.dash-card {
+  width: 370px;
+  height: 230px;
+  border-radius: 24px;
+  padding: 28px;
+  background: rgba(8, 20, 42, 0.38);
+  backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.dash-card:hover {
+  transform: translateY(-5px);
+}
+
+.dash-card h2 {
+  font-size: 34px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.dash-card p {
+  font-size: 16px;
+  line-height: 1.5;
+  min-height: 72px;
+}
+
+.dash-card button {
+  margin-top: 18px;
+  border: none;
+  padding: 14px 26px;
+  border-radius: 14px;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* COLORS */
+.cyan {
+  border: 2px solid #32d8ff;
+  box-shadow: 0 0 18px #32d8ff;
+}
+.cyan button {
+  background: #1590ff;
+}
+
+.green {
+  border: 2px solid #45ff98;
+  box-shadow: 0 0 18px #45ff98;
+}
+.green button {
+  background: #20d863;
+}
+
+.pink {
+  border: 2px solid #d65bff;
+  box-shadow: 0 0 18px #d65bff;
+}
+.pink button {
+  background: #9545ff;
+}
+
+.gold {
+  border: 2px solid #ffd44a;
+  box-shadow: 0 0 18px #ffd44a;
+}
+.gold button {
+  background: #f0b400;
+}
+
+.purple {
+  border: 2px solid #b57bff;
+  box-shadow: 0 0 18px #b57bff;
+}
+.purple button {
+  background: #824cff;
+}
+
+/* BOTTOM 2 CENTERED */
+.cards-grid .dash-card:nth-child(4) {
+  grid-column: 1;
+  margin-left: 205px;
+}
+
+.cards-grid .dash-card:nth-child(5) {
+  grid-column: 2;
+  margin-left: 210px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 800px) {
+  .dashboard-header {
+    padding: 14px 10px;
+    gap: 8px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .dashboard-logo {
+    width: 95px;
+  }
+
+  .tagline {
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  .right-side {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+  }
+
+  .user-box {
+    width: 220px;
+    height: 52px;
+    padding: 7px 10px;
+    gap: 8px;
+    border-radius: 14px;
+  }
+
+  .user-box img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .user-box h3 {
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+
+  .user-box span {
+    font-size: 10px;
+  }
+
+  .logout-btn {
+    width: 78px;
+    height: 46px;
+    font-size: 13px;
+    border-radius: 12px;
+    padding: 0;
+  }
+
+  .cards-grid {
+    grid-template-columns: 1fr;
+    width: 95%;
+  }
+
+  .dash-card {
+    width: 100%;
+  }
+}

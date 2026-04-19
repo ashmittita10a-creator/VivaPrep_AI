@@ -1,0 +1,273 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.settings-page {
+  min-height: 100vh;
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  font-family: Inter, Arial, sans-serif;
+  color: white;
+}
+
+.settings-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* HEADER */
+.settings-header {
+  position: relative;
+  z-index: 2;
+  padding: 22px 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.settings-brand img {
+  width: 56px;
+}
+
+.settings-brand span {
+  font-size: 46px;
+  font-weight: 700;
+}
+
+.settings-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(0,0,0,.28);
+  padding: 10px 16px;
+  border-radius: 18px;
+  backdrop-filter: blur(10px);
+}
+
+.settings-user img {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+}
+
+.settings-user h4 {
+  font-size: 18px;
+}
+
+.settings-user p {
+  font-size: 14px;
+  color: rgba(255,255,255,.75);
+}
+
+.logout-btn {
+  margin-left: 10px;
+  border: none;
+  background: #ef3a4d;
+  color: white;
+  padding: 14px 24px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* MAIN */
+.settings-main {
+  position: relative;
+  z-index: 2;
+  max-width: 980px;
+  margin: auto;
+  padding: 10px 20px 60px;
+}
+
+.settings-main h1 {
+  text-align: center;
+  font-size: 72px;
+  margin-bottom: 10px;
+}
+
+.subtext {
+  text-align: center;
+  font-size: 22px;
+  color: rgba(255,255,255,.84);
+  margin-bottom: 36px;
+}
+
+/* CARD */
+.settings-card {
+  background: rgba(8, 20, 42, 0.34);
+  border: 1px solid rgba(255,255,255,.12);
+  backdrop-filter: blur(14px);
+  border-radius: 28px;
+  padding: 34px;
+}
+
+.setting-section {
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+
+.setting-section:last-child {
+  border-bottom: none;
+}
+
+.row-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.setting-section h2 {
+  font-size: 38px;
+  font-weight: 700;
+}
+
+.name,
+.email,
+.setting-section p {
+  font-size: 20px;
+  color: rgba(255,255,255,.82);
+  line-height: 1.6;
+}
+
+/* BUTTONS */
+.blue-btn,
+.yellow-btn {
+  border: none;
+  cursor: pointer;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 600;
+  padding: 14px 22px;
+}
+
+.blue-btn {
+  background: #3496ff;
+  color: white;
+}
+
+.yellow-btn {
+  background: #f0a631;
+  color: white;
+}
+
+.delete-btn {
+  border: none;
+  background: transparent;
+  color: #ff3b55;
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* SWITCH */
+.switch {
+  position: relative;
+  width: 58px;
+  height: 30px;
+}
+
+.switch input {
+  display: none;
+}
+
+.slider {
+  position: absolute;
+  inset: 0;
+  background: #3f5d75;
+  border-radius: 30px;
+  cursor: pointer;
+}
+
+.slider::before {
+  content: "";
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  left: 3px;
+  top: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.switch input:checked + .slider {
+  background: #47d8ff;
+}
+
+.switch input:checked + .slider::before {
+  transform: translateX(28px);
+}
+
+/* THEME */
+.theme-grid {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.theme-box {
+  padding: 22px;
+  border-radius: 18px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.03);
+}
+
+.theme-box.active {
+  border: 2px solid #2fd8ff;
+  box-shadow: 0 0 18px #2fd8ff;
+}
+
+/* SECURITY */
+.security-actions {
+  margin-top: 22px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+/* BOTTOM */
+.bottom-features {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 20px;
+  padding-top: 26px;
+}
+
+.mini-card {
+  text-align: center;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255,255,255,.03);
+}
+
+.mini-card span {
+  font-size: 38px;
+}
+
+.mini-card h4 {
+  font-size: 24px;
+  margin: 10px 0;
+}
+
+.mini-card p {
+  font-size: 16px;
+  color: rgba(255,255,255,.74);
+  line-height: 1.5;
+}
