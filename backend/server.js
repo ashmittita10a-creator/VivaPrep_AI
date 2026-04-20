@@ -6,46 +6,51 @@ const path = require("path");
 const pdfParse = require("pdf-parse");
 const Tesseract = require("tesseract.js");
 const pdfPoppler = require("pdf-poppler");
+const axios = require("axios");
 const Groq = require("groq-sdk");
 const { createClient } = require("@supabase/supabase-js");
 
 require("dotenv").config();
 
+/* =====================================================
+   APP
+===================================================== */
 const app = express();
+const PORT = 5000;
 
 app.use(cors());
 app.use(express.json());
 
-/* ===================================
-   UPLOAD
-=================================== */
+/* =====================================================
+   MULTER
+===================================================== */
 const upload = multer({
   dest: "uploads/",
 });
 
-/* ===================================
-   GROQ
-=================================== */
+/* =====================================================
+   GROQ FALLBACK
+===================================================== */
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-/* ===================================
+/* =====================================================
    SUPABASE
-=================================== */
+===================================================== */
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-/* ===================================
-   MEMORY JOB STORE
-=================================== */
+/* =====================================================
+   JOB STORE
+===================================================== */
 const jobs = {};
 
-/* ===================================
+/* =====================================================
    HELPERS
-=================================== */
+===================================================== */
 function jobId() {
   return (
     Date.now().toString() +
@@ -61,20 +66,38 @@ function safeDelete(filePath) {
   } catch {}
 }
 
-function cleanOutput(text) {
+function cleanText(text = "") {
+  return text
+    .replace(/\r/g, " ")
+    .replace(/\t/g, " ")
+    .replace(/\u0000/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function cleanOutput(text = "") {
   return text
     .replace(/\*\*/g, "")
     .replace(/#{1,6}\s/g, "")
     .replace(/Question\s*\d*[:.)-]*/gi, "")
     .replace(/Q\s*\d*[:.)-]*/gi, "")
-    .replace(/A\s*\d*[:.)-]*/gi, "Answer:")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-/* ===================================
+function splitChunks(text, size = 5000) {
+  const arr = [];
+
+  for (let i = 0; i < text.length; i += size) {
+    arr.push(text.slice(i, i + size));
+  }
+
+  return arr;
+}
+
+/* =====================================================
    OCR IMAGE
-=================================== */
+===================================================== */
 async function runOCR(filePath) {
   try {
     const result = await Tesseract.recognize(
@@ -88,9 +111,9 @@ async function runOCR(filePath) {
   }
 }
 
-/* ===================================
+/* =====================================================
    SCANNED PDF OCR
-=================================== */
+===================================================== */
 async function scannedPdfOCR(pdfPath) {
   const outputDir = "converted";
 
@@ -119,29 +142,32 @@ async function scannedPdfOCR(pdfPath) {
 
   for (const file of files) {
     const img = path.join(outputDir, file);
+
     text += await runOCR(img);
     text += "\n";
+
     safeDelete(img);
   }
 
   return text;
 }
 
-/* ===================================
-   EXTRACT TEXT
-=================================== */
+/* =====================================================
+   EXTRACT FILE TEXT
+===================================================== */
 async function extractContent(filePath, ext) {
-  let extractedText = "";
+  let text = "";
 
   if (ext === ".pdf") {
     try {
       const buffer = fs.readFileSync(filePath);
-      const pdfData = await pdfParse(buffer);
-      extractedText = pdfData.text || "";
+      const pdf = await pdfParse(buffer);
+
+      text = pdf.text || "";
     } catch {}
 
-    if (extractedText.trim().length < 100) {
-      extractedText = await scannedPdfOCR(filePath);
+    if (cleanText(text).length < 300) {
+      text = await scannedPdfOCR(filePath);
     }
   }
 
@@ -151,193 +177,271 @@ async function extractContent(filePath, ext) {
     ext === ".jpeg" ||
     ext === ".webp"
   ) {
-    extractedText = await runOCR(filePath);
+    text = await runOCR(filePath);
   }
 
-  return extractedText
-    .replace(/\s+/g, " ")
-    .trim();
+  return cleanText(text);
 }
 
-/* ===================================
-   GROQ CALL WITH FALLBACK
-=================================== */
-async function askGroq(prompt, maxTokens = 1800) {
+/* =====================================================
+   TOGETHER AI MAIN
+===================================================== */
+async function askTogether(prompt, maxTokens = 3500) {
+  const res = await axios.post(
+    "https://api.together.xyz/v1/chat/completions",
+    {
+      model:
+        "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: maxTokens,
+    },
+    {
+      headers: {
+        Authorization:
+          `Bearer ${process.env.TOGETHER_API_KEY}`,
+        "Content-Type":
+          "application/json",
+      },
+    }
+  );
+
+  return (
+    res.data.choices?.[0]?.message
+      ?.content || ""
+  );
+}
+
+/* =====================================================
+   GROQ FALLBACK
+===================================================== */
+async function askGroq(prompt, maxTokens = 3500) {
+  const res =
+    await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      temperature: 0.2,
+      max_tokens: maxTokens,
+    });
+
+  return (
+    res.choices[0]?.message?.content ||
+    ""
+  );
+}
+
+/* =====================================================
+   SMART AI CALL
+===================================================== */
+async function askAI(prompt, maxTokens = 3500) {
   try {
-    return await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: maxTokens,
-    });
-  } catch (err) {
-    return await groq.chat.completions.create({
-      model: "llama3-8b-8192",
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.3,
-      max_tokens: maxTokens,
-    });
+    return await askTogether(
+      prompt,
+      maxTokens
+    );
+  } catch (error) {
+    console.log(
+      "Together failed -> Groq fallback"
+    );
+
+    return await askGroq(
+      prompt,
+      maxTokens
+    );
   }
 }
 
-/* ===================================
+/* =====================================================
+   PDF ANALYSIS
+===================================================== */
+async function analyzeChunks(text, id) {
+  const chunks = splitChunks(text, 4500);
+
+  let summary = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    jobs[id].status =
+      `Analyzing PDF ${i + 1}/${chunks.length}`;
+
+    const prompt = `
+Analyze academic study material.
+
+Return:
+1. Subject name
+2. Chapters
+3. Important concepts
+4. Definitions
+5. Repeated topics
+6. Viva likely questions
+7. Formula / numericals
+
+CONTENT:
+${chunks[i]}
+`;
+
+    const out = await askAI(
+      prompt,
+      1000
+    );
+
+    summary.push(out);
+  }
+
+  return summary.join("\n\n");
+}
+
+/* =====================================================
+   FINAL GENERATION
+===================================================== */
+async function generatePremium(summary, topic) {
+  const prompt = `
+You are an expert viva examiner.
+
+Your job is to generate viva questions ONLY from the uploaded study material.
+
+STRICT RULES (VERY IMPORTANT):
+
+1. Use ONLY the provided PDF ANALYSIS.
+2. Do NOT use random outside examples.
+3. Do NOT add DBMS / Java / C / OS etc unless present in PDF.
+4. If user typed topics, include them ONLY if relevant.
+5. Generate viva-style oral exam questions.
+6. Questions must be relevant to chapters, definitions, concepts, formulas, processes.
+7. Generate dynamic number of questions:
+   - Small material = 8+
+   - Medium = 15+
+   - Large = 25+
+8. Mix short / medium / long answers.
+9. Use numbering only.
+10. Format exactly:
+
+1. What is ...
+Answer:
+...
+
+2. Explain ...
+Answer:
+...
+
+USER TOPICS:
+${topic || "None"}
+
+PDF ANALYSIS:
+${summary}
+
+Now generate highly relevant viva questions and answers.
+`;
+
+  return await askAI(prompt, 6500);
+}
+
+/* =====================================================
    PROCESS JOB
-=================================== */
-async function processJob(id, filePath, ext) {
+===================================================== */
+async function processJob(
+  id,
+  filePath,
+  ext
+) {
   try {
-    jobs[id].status = "reading";
+    jobs[id].status =
+      "Reading file...";
 
     let extractedText = "";
 
     if (filePath) {
-      extractedText = await extractContent(
-        filePath,
-        ext
-      );
+      extractedText =
+        await extractContent(
+          filePath,
+          ext
+        );
     }
 
-    const userTopic = jobs[id].topic || "";
+    const topic =
+      jobs[id].topic || "";
 
     if (
-      extractedText.length < 20 &&
-      userTopic.trim().length < 2
+      extractedText.length < 30 &&
+      topic.trim().length < 2
     ) {
-      jobs[id].status = "failed";
+      jobs[id].status =
+        "failed";
       jobs[id].result =
-        "Please upload valid file or enter topics.";
+        "Upload readable file or enter topics.";
       return;
     }
 
-    /* ==========================
-       ANALYSIS
-    ========================== */
-    jobs[id].status = "analyzing";
-
-    const analysisPrompt = `
-Study material and topics:
-
-TOPICS:
-${userTopic}
-
-CONTENT:
-${extractedText.slice(0, 6000)}
-
-Return only:
-1. Subject Name
-2. Chapters
-3. Important repeated concepts
-4. Viva probability topics
-5. Exam likely questions
-`;
-
-    const analysis = await askGroq(
-      analysisPrompt,
-      700
-    );
+    jobs[id].status =
+      "Understanding content...";
 
     const summary =
-      analysis.choices[0]?.message?.content ||
-      "";
+      await analyzeChunks(
+        extractedText,
+        id
+      );
 
-    /* ==========================
-       GENERATION
-    ========================== */
-    jobs[id].status = "generating";
-
-    const finalPrompt = `
-You are elite university professor and viva examiner.
-
-Generate premium preparation content.
-
-STRICT RULES:
-
-1. Generate RANDOM number of important questions.
-2. If subject large -> more questions.
-3. If small subject -> fewer but quality.
-4. Mix short medium long answers.
-5. Cover definitions, differences, concepts, numericals, applications.
-6. Use numbering only.
-7. Never write Q:
-8. Never write Marks:
-9. Keep formatting beautiful.
-10. Separate each answer clearly.
-
-FORMAT:
-
-1. What is DBMS?
-Answer:
-....
-
-2. Explain normalization.
-Answer:
-....
-
-TOPICS:
-${userTopic}
-
-SUMMARY:
-${summary}
-
-CONTENT:
-${extractedText.slice(0, 9000)}
-`;
-
-    const completion = await askGroq(
-      finalPrompt,
-      3500
-    );
+    jobs[id].status =
+      "Generating premium output...";
 
     let result =
-      completion.choices[0]?.message?.content ||
-      "No output generated.";
+      await generatePremium(
+        summary,
+        topic
+      );
 
     result = cleanOutput(result);
 
-    /* ==========================
-       SAVE REPORT
-    ========================== */
-    await supabase.from("reports").insert([
-      {
-        user_id: jobs[id].user_id,
-        title: "Generated Viva Report",
-        content: result,
-      },
-    ]);
+    jobs[id].status =
+      "Saving report...";
 
-    jobs[id].status = "done";
-    jobs[id].result = result;
+    await supabase
+      .from("reports")
+      .insert([
+        {
+          user_id:
+            jobs[id].user_id,
+          title:
+            "Generated Viva Report",
+          content: result,
+        },
+      ]);
+
+    jobs[id].status =
+      "done";
+    jobs[id].result =
+      result;
 
     safeDelete(filePath);
   } catch (error) {
     console.log(error);
 
-    jobs[id].status = "failed";
+    jobs[id].status =
+      "failed";
     jobs[id].result =
       "Generation failed. Try again.";
   }
 }
 
-/* ===================================
+/* =====================================================
    ROUTES
-=================================== */
-
+===================================================== */
 app.get("/", (req, res) => {
-  res.send("VivaPrep AI Backend Running");
+  res.send(
+    "VivaPrep AI Backend Running"
+  );
 });
 
-/* ===================================
-   UPLOAD
-=================================== */
+/* UPLOAD */
 app.post(
   "/upload",
   upload.single("file"),
@@ -345,81 +449,80 @@ app.post(
     try {
       const id = jobId();
 
-      const hasFile = req.file ? true : false;
+      const hasFile =
+        !!req.file;
 
-      const filePath = hasFile
-        ? req.file.path
-        : null;
+      const filePath =
+        hasFile
+          ? req.file.path
+          : null;
 
-      const ext = hasFile
-        ? path
-            .extname(req.file.originalname)
-            .toLowerCase()
-        : "";
+      const ext =
+        hasFile
+          ? path
+              .extname(
+                req.file
+                  .originalname
+              )
+              .toLowerCase()
+          : "";
 
       jobs[id] = {
-        status: "queued",
+        status:
+          "queued",
         result: "",
-        user_id: req.body.user_id,
-        topic: req.body.topic || "",
+        user_id:
+          req.body.user_id,
+        topic:
+          req.body.topic ||
+          "",
       };
 
-      processJob(id, filePath, ext);
+      processJob(
+        id,
+        filePath,
+        ext
+      );
 
       res.json({
         jobId: id,
       });
     } catch (error) {
-      console.log(error);
-
       res.status(500).json({
-        error: "Upload failed",
+        error:
+          "Upload failed",
       });
     }
   }
 );
 
-/* ===================================
-   STATUS
-=================================== */
-app.get("/status/:id", (req, res) => {
-  const id = req.params.id;
+/* RESULT */
+app.get(
+  "/result/:id",
+  (req, res) => {
+    const id =
+      req.params.id;
 
-  if (!jobs[id]) {
-    return res.json({
-      status: "not_found",
+    if (!jobs[id]) {
+      return res.json({
+        status:
+          "not_found",
+        result: "",
+      });
+    }
+
+    res.json({
+      status:
+        jobs[id].status,
+      result:
+        jobs[id].result,
     });
   }
+);
 
-  res.json({
-    status: jobs[id].status,
-  });
-});
-
-/* ===================================
-   RESULT
-=================================== */
-app.get("/result/:id", (req, res) => {
-  const id = req.params.id;
-
-  if (!jobs[id]) {
-    return res.json({
-      status: "not_found",
-      result: "",
-    });
-  }
-
-  res.json({
-    status: jobs[id].status,
-    result: jobs[id].result,
-  });
-});
-
-/* ===================================
-   START SERVER
-=================================== */
-app.listen(5000, () => {
+/* START */
+app.listen(PORT, () => {
   console.log(
-    "Backend running on port 5000"
+    `Backend running on port ${PORT}`
   );
 });
