@@ -8,6 +8,31 @@ import logo from "../assets/Logo.png";
 export default function Login() {
   const navigate = useNavigate();
 
+  async function createProfileIfNeeded(user) {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile) {
+    await supabase.from("profiles").insert([
+      {
+        id: user.id,
+        email: user.email,
+        full_name:
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          "User",
+        avatar_url:
+          user.user_metadata?.avatar_url || "",
+        plan: "free",
+        report_count: 0,
+      },
+    ]);
+  }
+}
+
   async function loginWithGoogle() {
     await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -24,8 +49,9 @@ export default function Login() {
       } = await supabase.auth.getSession();
 
       if (session) {
-        navigate("/dashboard");
-      }
+  await createProfileIfNeeded(session.user);
+  navigate("/dashboard");
+}
     }
 
     checkSession();

@@ -1,8 +1,66 @@
 import "./Premium.css";
 import bg from "../assets/Background.png";
 import Navbar from "../components/Navbar";
+import { useEffect, useState } from "react";
+import { supabase } from "../supabase";
 
 export default function Premium() {
+  const [plan, setPlan] = useState("free");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPlan();
+  }, []);
+
+  async function fetchPlan() {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .single();
+
+      if (!error && data) {
+        setPlan(data.plan || "free");
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+    }
+  }
+
+  async function upgradePlan() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) return;
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ plan: "premium" })
+      .eq("id", user.id);
+
+    if (error) {
+      alert("Upgrade failed.");
+      return;
+    }
+
+    setPlan("premium");
+    alert("You are now Premium 👑");
+  }
+
   return (
     <div
       className="premium-page"
@@ -10,7 +68,7 @@ export default function Premium() {
     >
       <div className="premium-overlay"></div>
 
-      {/* Updated Navbar */}
+      {/* Navbar */}
       <Navbar showBack={true} />
 
       {/* MAIN */}
@@ -26,18 +84,33 @@ export default function Premium() {
           <div className="left-side">
             <div className="shield-box">⭐</div>
 
-            <button className="upgrade-btn">
-              Upgrade Now
+            <button
+              className="upgrade-btn"
+              onClick={
+                plan === "premium"
+                  ? null
+                  : upgradePlan
+              }
+            >
+              {loading
+                ? "Loading..."
+                : plan === "premium"
+                ? "Already Premium 👑"
+                : "Upgrade Now"}
             </button>
 
             <p className="price-line">
-              Try free for 7 days,
-              <br />
-              then just ₹99/month
+              {loading
+                ? "Checking your plan..."
+                : plan === "premium"
+                ? "Your premium membership is active."
+                : "Try free for 7 days, then just ₹99/month"}
             </p>
 
             <span className="cancel-text">
-              Cancel anytime
+              {plan === "premium"
+                ? "Unlimited reports unlocked"
+                : "Cancel anytime"}
             </span>
           </div>
 
@@ -47,11 +120,10 @@ export default function Premium() {
               <span>✔</span>
 
               <div>
-                <h3>100 Uploads / Month</h3>
+                <h3>Unlimited Reports</h3>
 
                 <p>
-                  Upload notes, PDFs and generate up to
-                  100 reports monthly.
+                  Generate unlimited viva reports without restrictions.
                 </p>
               </div>
             </div>
@@ -63,8 +135,7 @@ export default function Premium() {
                 <h3>Faster AI</h3>
 
                 <p>
-                  Generate questions in record time with
-                  priority speed.
+                  Generate questions in record time with priority speed.
                 </p>
               </div>
             </div>
@@ -76,8 +147,7 @@ export default function Premium() {
                 <h3>Unlimited Saved Reports</h3>
 
                 <p>
-                  Keep all reports stored securely for
-                  future revision.
+                  Keep all reports stored securely for future revision.
                 </p>
               </div>
             </div>
@@ -89,8 +159,7 @@ export default function Premium() {
                 <h3>Priority Support</h3>
 
                 <p>
-                  Get faster help whenever you need
-                  assistance.
+                  Get faster help whenever you need assistance.
                 </p>
               </div>
             </div>
@@ -102,11 +171,10 @@ export default function Premium() {
           <div className="mini-box">
             <div className="icon">👑</div>
 
-            <h4>Full AI Power</h4>
+            <h4>Unlimited Power</h4>
 
             <p>
-              100 monthly uploads with premium
-              generation quality.
+              Unlock unlimited uploads and best AI generation quality.
             </p>
           </div>
 
@@ -116,8 +184,7 @@ export default function Premium() {
             <h4>Saved Reports</h4>
 
             <p>
-              Access your reports anytime from your
-              account.
+              Access your reports anytime from your account.
             </p>
           </div>
 

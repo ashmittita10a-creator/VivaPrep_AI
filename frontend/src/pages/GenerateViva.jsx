@@ -59,62 +59,118 @@ export default function GenerateViva() {
      GENERATE QUESTIONS
   =================================================== */
   async function generateQuestions() {
-    try {
-      setLoading(true);
-      setStatus("Preparing AI engine...");
-      setResult([]);
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("Please login first.");
+      return;
+    }
+
+    const { data: profile, error: profileError } =
+      await supabase
+        .from("profiles")
+        .select("plan, report_count")
+        .eq("id", user.id)
+        .single();
+
+    if (profileError) {
+      console.log(profileError);
+    }
+
+    if (
+      profile &&
+      profile.plan === "free" &&
+      profile.report_count >= 3
+    ) {
+      alert(
+        "Free plan limit reached (3 reports). Upgrade to Premium 🚀"
+      );
+      return;
+    }
+
+    setLoading(true);
+    setStatus("Preparing AI engine...");
+    setResult([]);
+
+    const formData = new FormData();
+
+    if (file) formData.append("file", file);
+
+    formData.append("topic", topics);
+    formData.append("user_id", user.id);
+
+    const res = await fetch("http://localhost:5000/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+
+    pollResult(data.jobId);
+  } catch (error) {
+    console.log(error);
+    setLoading(false);
+    setStatus("Failed.");
+  }
+}
+
+  function pollResult(jobId) {
+  const interval = setInterval(async () => {
+    const res = await fetch(
+      `http://localhost:5000/result/${jobId}`
+    );
+
+    const data = await res.json();
+
+    if (data.status === "queued")
+      setStatus("Queued...");
+    if (data.status === "reading")
+      setStatus("Reading file...");
+    if (data.status === "analyzing")
+      setStatus("Analyzing...");
+    if (data.status === "generating")
+      setStatus("Generating...");
+    if (data.status === "saving")
+      setStatus("Saving...");
+
+    if (data.status === "done") {
+      clearInterval(interval);
+      setLoading(false);
+      setStatus("");
+      formatOutput(data.result);
 
       const {
         data: { user },
       } = await supabase.auth.getUser();
 
-      const formData = new FormData();
+      if (user) {
+        const { data: profile } =
+          await supabase
+            .from("profiles")
+            .select("report_count")
+            .eq("id", user.id)
+            .single();
 
-      if (file) formData.append("file", file);
+        await supabase
+          .from("profiles")
+          .update({
+            report_count:
+              (profile?.report_count || 0) + 1,
+          })
+          .eq("id", user.id);
+      }
+    }
 
-      formData.append("topic", topics);
-      formData.append("user_id", user?.id || "");
-
-      const res = await fetch("http://localhost:5000/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await res.json();
-
-      pollResult(data.jobId);
-    } catch (error) {
-      console.log(error);
+    if (data.status === "failed") {
+      clearInterval(interval);
       setLoading(false);
       setStatus("Failed.");
     }
-  }
-
-  function pollResult(jobId) {
-    const interval = setInterval(async () => {
-      const res = await fetch(`http://localhost:5000/result/${jobId}`);
-      const data = await res.json();
-
-      if (data.status === "queued") setStatus("Queued...");
-      if (data.status === "reading") setStatus("Reading file...");
-      if (data.status === "analyzing") setStatus("Analyzing...");
-      if (data.status === "generating") setStatus("Generating...");
-      if (data.status === "saving") setStatus("Saving...");
-
-      if (data.status === "done") {
-        clearInterval(interval);
-        setLoading(false);
-        setStatus("");
-        formatOutput(data.result);
-      }
-
-      if (data.status === "failed") {
-        clearInterval(interval);
-        setLoading(false);
-        setStatus("Failed.");
-      }
-    }, 2200);
-  }
+  }, 2200);
+}
 
   function formatOutput(text) {
     const lines = text.split("\n").filter(Boolean);
